@@ -1,5 +1,63 @@
-// Aurora料金設定（例：東京リージョン、実際の料金は変更される可能性があります）
-export const PRICING = {
+// AWS リージョン一覧
+export const REGIONS = {
+  'us-east-1': 'US East (N. Virginia)',
+  'us-east-2': 'US East (Ohio)',
+  'us-west-1': 'US West (N. California)',
+  'us-west-2': 'US West (Oregon)',
+  'ap-northeast-1': 'Asia Pacific (Tokyo)',
+  'ap-northeast-2': 'Asia Pacific (Seoul)',
+  'ap-northeast-3': 'Asia Pacific (Osaka)',
+  'ap-southeast-1': 'Asia Pacific (Singapore)',
+  'ap-southeast-2': 'Asia Pacific (Sydney)',
+  'ap-south-1': 'Asia Pacific (Mumbai)',
+  'eu-central-1': 'Europe (Frankfurt)',
+  'eu-west-1': 'Europe (Ireland)',
+  'eu-west-2': 'Europe (London)',
+  'eu-west-3': 'Europe (Paris)',
+  'sa-east-1': 'South America (São Paulo)'
+};
+
+// リージョンごとのインスタンス料金乗数
+// 基準は us-east-1 で、それに対する相対料金
+const REGION_MULTIPLIERS = {
+  'us-east-1': 1.0,     // US East (N. Virginia)
+  'us-east-2': 1.0,     // US East (Ohio)
+  'us-west-1': 1.18,    // US West (N. California)
+  'us-west-2': 1.0,     // US West (Oregon)
+  'ap-northeast-1': 1.25, // Asia Pacific (Tokyo)
+  'ap-northeast-2': 1.25, // Asia Pacific (Seoul)
+  'ap-northeast-3': 1.25, // Asia Pacific (Osaka)
+  'ap-southeast-1': 1.25, // Asia Pacific (Singapore)
+  'ap-southeast-2': 1.25, // Asia Pacific (Sydney)
+  'ap-south-1': 1.18,    // Asia Pacific (Mumbai)
+  'eu-central-1': 1.15,  // Europe (Frankfurt)
+  'eu-west-1': 1.05,    // Europe (Ireland)
+  'eu-west-2': 1.15,    // Europe (London)
+  'eu-west-3': 1.15,    // Europe (Paris)
+  'sa-east-1': 1.4      // South America (São Paulo)
+};
+
+// リージョンごとのストレージ料金乗数
+const STORAGE_MULTIPLIERS = {
+  'us-east-1': 1.0,
+  'us-east-2': 1.0,
+  'us-west-1': 1.1,
+  'us-west-2': 1.0,
+  'ap-northeast-1': 1.15,
+  'ap-northeast-2': 1.15,
+  'ap-northeast-3': 1.15,
+  'ap-southeast-1': 1.15,
+  'ap-southeast-2': 1.15,
+  'ap-south-1': 1.15,
+  'eu-central-1': 1.1,
+  'eu-west-1': 1.05,
+  'eu-west-2': 1.1,
+  'eu-west-3': 1.1,
+  'sa-east-1': 1.3
+};
+
+// Aurora料金設定（基本は米国東部（バージニア北部）リージョン）
+export const BASE_PRICING = {
   // Aurora Standard料金
   STANDARD: {
     // インスタンスタイプごとの時間単価（USD/時間）
@@ -84,7 +142,38 @@ export const PRICING = {
 };
 
 // インスタンスタイプ一覧
-export const INSTANCE_TYPES = Object.keys(PRICING.STANDARD.INSTANCE_PRICING);
+export const INSTANCE_TYPES = Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
+
+// 指定されたリージョンの料金を取得
+export function getPricingForRegion(region: string = 'us-east-1') {
+  const regionMultiplier = REGION_MULTIPLIERS[region as keyof typeof REGION_MULTIPLIERS] || 1.0;
+  const storageMultiplier = STORAGE_MULTIPLIERS[region as keyof typeof STORAGE_MULTIPLIERS] || 1.0;
+  
+  // 基本料金をディープコピー
+  const regionalPricing = JSON.parse(JSON.stringify(BASE_PRICING));
+  
+  // インスタンス料金をリージョンに合わせて調整
+  for (const instanceType in regionalPricing.STANDARD.INSTANCE_PRICING) {
+    regionalPricing.STANDARD.INSTANCE_PRICING[instanceType] *= regionMultiplier;
+    regionalPricing.IO_OPTIMIZED.INSTANCE_PRICING[instanceType] *= regionMultiplier;
+  }
+  
+  // ストレージ関連の料金をリージョンに合わせて調整
+  regionalPricing.STANDARD.STORAGE_PRICING *= storageMultiplier;
+  regionalPricing.IO_OPTIMIZED.STORAGE_PRICING *= storageMultiplier;
+  regionalPricing.SERVERLESS_V2.STORAGE_PRICING *= storageMultiplier;
+  regionalPricing.STANDARD.BACKUP_PRICING *= storageMultiplier;
+  regionalPricing.IO_OPTIMIZED.BACKUP_PRICING *= storageMultiplier;
+  regionalPricing.SERVERLESS_V2.BACKUP_PRICING *= storageMultiplier;
+  
+  // I/O料金も調整
+  regionalPricing.STANDARD.IO_PRICING *= regionMultiplier;
+  
+  // ACU料金の調整
+  regionalPricing.SERVERLESS_V2.ACU_PRICING *= regionMultiplier;
+  
+  return regionalPricing;
+}
 
 // 月間コスト計算 - Aurora Standard
 export function calculateStandardMonthlyCost(
@@ -92,14 +181,17 @@ export function calculateStandardMonthlyCost(
   storageGB: number,
   ioRequests: number, // 百万単位
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): number {
+  const pricing = getPricingForRegion(region);
+  
   // インスタンス時間料金（USD/時間）
-  let hourlyRate = PRICING.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof PRICING.STANDARD.INSTANCE_PRICING] || 0;
+  let hourlyRate = pricing.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof pricing.STANDARD.INSTANCE_PRICING] || 0;
   
   // リザーブドインスタンスの場合は割引を適用
   if (useReservedInstance) {
-    const discount = PRICING.RESERVED_INSTANCE[reservedInstanceType];
+    const discount = pricing.RESERVED_INSTANCE[reservedInstanceType];
     hourlyRate = hourlyRate * (1 - discount);
   }
   
@@ -107,13 +199,13 @@ export function calculateStandardMonthlyCost(
   const instanceCost = hourlyRate * 24 * 30;
   
   // ストレージコスト
-  const storageCost = storageGB * PRICING.STANDARD.STORAGE_PRICING;
+  const storageCost = storageGB * pricing.STANDARD.STORAGE_PRICING;
   
   // I/Oコスト
-  const ioCost = ioRequests * PRICING.STANDARD.IO_PRICING;
+  const ioCost = ioRequests * pricing.STANDARD.IO_PRICING;
   
   // バックアップコスト（ストレージの25%と仮定）
-  const backupCost = storageGB * 0.25 * PRICING.STANDARD.BACKUP_PRICING;
+  const backupCost = storageGB * 0.25 * pricing.STANDARD.BACKUP_PRICING;
   
   // 合計コスト
   return instanceCost + storageCost + ioCost + backupCost;
@@ -124,14 +216,17 @@ export function calculateIoOptimizedMonthlyCost(
   instanceType: string,
   storageGB: number,
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): number {
+  const pricing = getPricingForRegion(region);
+  
   // インスタンス時間料金（USD/時間）
-  let hourlyRate = PRICING.IO_OPTIMIZED.INSTANCE_PRICING[instanceType as keyof typeof PRICING.IO_OPTIMIZED.INSTANCE_PRICING] || 0;
+  let hourlyRate = pricing.IO_OPTIMIZED.INSTANCE_PRICING[instanceType as keyof typeof pricing.IO_OPTIMIZED.INSTANCE_PRICING] || 0;
   
   // リザーブドインスタンスの場合は割引を適用
   if (useReservedInstance) {
-    const discount = PRICING.RESERVED_INSTANCE[reservedInstanceType];
+    const discount = pricing.RESERVED_INSTANCE[reservedInstanceType];
     hourlyRate = hourlyRate * (1 - discount);
   }
   
@@ -139,10 +234,10 @@ export function calculateIoOptimizedMonthlyCost(
   const instanceCost = hourlyRate * 24 * 30;
   
   // ストレージコスト
-  const storageCost = storageGB * PRICING.IO_OPTIMIZED.STORAGE_PRICING;
+  const storageCost = storageGB * pricing.IO_OPTIMIZED.STORAGE_PRICING;
   
   // バックアップコスト（ストレージの25%と仮定）
-  const backupCost = storageGB * 0.25 * PRICING.IO_OPTIMIZED.BACKUP_PRICING;
+  const backupCost = storageGB * 0.25 * pricing.IO_OPTIMIZED.BACKUP_PRICING;
   
   // 合計コスト（I/O-Optimizedの場合はI/Oコストなし）
   return instanceCost + storageCost + backupCost;
@@ -151,16 +246,19 @@ export function calculateIoOptimizedMonthlyCost(
 // 月間コスト計算 - Aurora Serverless v2
 export function calculateServerlessV2MonthlyCost(
   averageACU: number, // 平均ACU使用量
-  storageGB: number
+  storageGB: number,
+  region: string = 'us-east-1'
 ): number {
+  const pricing = getPricingForRegion(region);
+  
   // ACUコスト
-  const acuCost = averageACU * PRICING.SERVERLESS_V2.ACU_PRICING * 24 * 30;
+  const acuCost = averageACU * pricing.SERVERLESS_V2.ACU_PRICING * 24 * 30;
   
   // ストレージコスト
-  const storageCost = storageGB * PRICING.SERVERLESS_V2.STORAGE_PRICING;
+  const storageCost = storageGB * pricing.SERVERLESS_V2.STORAGE_PRICING;
   
   // バックアップコスト（ストレージの25%と仮定）
-  const backupCost = storageGB * 0.25 * PRICING.SERVERLESS_V2.BACKUP_PRICING;
+  const backupCost = storageGB * 0.25 * pricing.SERVERLESS_V2.BACKUP_PRICING;
   
   // 合計コスト
   return acuCost + storageCost + backupCost;
@@ -172,7 +270,8 @@ export function determineOptimalAuroraType(
   storageGB: number,
   ioRequests: number, // 百万単位
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): {
   recommendedType: string;
   standardCost: number;
@@ -182,11 +281,11 @@ export function determineOptimalAuroraType(
 } {
   // 各タイプのコスト計算
   const standardCost = calculateStandardMonthlyCost(
-    instanceType, storageGB, ioRequests, useReservedInstance, reservedInstanceType
+    instanceType, storageGB, ioRequests, useReservedInstance, reservedInstanceType, region
   );
   
   const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-    instanceType, storageGB, useReservedInstance, reservedInstanceType
+    instanceType, storageGB, useReservedInstance, reservedInstanceType, region
   );
   
   // 差額計算
@@ -210,33 +309,36 @@ export function calculateBreakEvenIORequests(
   instanceType: string,
   storageGB: number,
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): number {
+  const pricing = getPricingForRegion(region);
+  
   // インスタンス料金（リザーブドインスタンス割引適用済み）
-  let standardHourlyRate = PRICING.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof PRICING.STANDARD.INSTANCE_PRICING] || 0;
-  let ioOptimizedHourlyRate = PRICING.IO_OPTIMIZED.INSTANCE_PRICING[instanceType as keyof typeof PRICING.IO_OPTIMIZED.INSTANCE_PRICING] || 0;
+  let standardHourlyRate = pricing.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof pricing.STANDARD.INSTANCE_PRICING] || 0;
+  let ioOptimizedHourlyRate = pricing.IO_OPTIMIZED.INSTANCE_PRICING[instanceType as keyof typeof pricing.IO_OPTIMIZED.INSTANCE_PRICING] || 0;
   
   if (useReservedInstance) {
-    const discount = PRICING.RESERVED_INSTANCE[reservedInstanceType];
+    const discount = pricing.RESERVED_INSTANCE[reservedInstanceType];
     standardHourlyRate = standardHourlyRate * (1 - discount);
     ioOptimizedHourlyRate = ioOptimizedHourlyRate * (1 - discount);
   }
   
   // 月間固定コスト（インスタンス + ストレージ + バックアップ）
   const standardFixedCost = (standardHourlyRate * 24 * 30) + 
-                           (storageGB * PRICING.STANDARD.STORAGE_PRICING) + 
-                           (storageGB * 0.25 * PRICING.STANDARD.BACKUP_PRICING);
+                           (storageGB * pricing.STANDARD.STORAGE_PRICING) + 
+                           (storageGB * 0.25 * pricing.STANDARD.BACKUP_PRICING);
   
   const ioOptimizedFixedCost = (ioOptimizedHourlyRate * 24 * 30) + 
-                              (storageGB * PRICING.IO_OPTIMIZED.STORAGE_PRICING) + 
-                              (storageGB * 0.25 * PRICING.IO_OPTIMIZED.BACKUP_PRICING);
+                              (storageGB * pricing.IO_OPTIMIZED.STORAGE_PRICING) + 
+                              (storageGB * 0.25 * pricing.IO_OPTIMIZED.BACKUP_PRICING);
   
   // I/O-Optimizedの固定コストが高い場合、損益分岐点を計算
   if (ioOptimizedFixedCost > standardFixedCost) {
     // I/O-OptimizedとStandardが等しくなるI/O量を計算
     // ioOptimizedFixedCost = standardFixedCost + (io * IO_PRICING)
     // 解いて: io = (ioOptimizedFixedCost - standardFixedCost) / IO_PRICING
-    return (ioOptimizedFixedCost - standardFixedCost) / PRICING.STANDARD.IO_PRICING;
+    return (ioOptimizedFixedCost - standardFixedCost) / pricing.STANDARD.IO_PRICING;
   } else {
     // I/O-Optimizedの固定コストが低い場合、標準が有利になることはない
     return 0;
@@ -249,7 +351,8 @@ export function generateBreakEvenGraphData(
   storageGB: number,
   maxIO: number = 100, // 最大I/O量（100万リクエスト単位）
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): Array<{io: number; standardCost: number; ioOptimizedCost: number}> {
   const dataPoints = [];
   
@@ -258,11 +361,11 @@ export function generateBreakEvenGraphData(
   
   for (let io = 0; io <= maxIO; io += step) {
     const standardCost = calculateStandardMonthlyCost(
-      instanceType, storageGB, io, useReservedInstance, reservedInstanceType
+      instanceType, storageGB, io, useReservedInstance, reservedInstanceType, region
     );
     
     const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-      instanceType, storageGB, useReservedInstance, reservedInstanceType
+      instanceType, storageGB, useReservedInstance, reservedInstanceType, region
     );
     
     dataPoints.push({
@@ -281,7 +384,8 @@ export function generateStorageComparisonData(
   ioRequests: number,
   maxStorage: number = 1000, // 最大ストレージ（GB）
   useReservedInstance: boolean = false,
-  reservedInstanceType: keyof typeof PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT'
+  reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
+  region: string = 'us-east-1'
 ): Array<{storage: number; standardCost: number; ioOptimizedCost: number}> {
   const dataPoints = [];
   
@@ -290,11 +394,11 @@ export function generateStorageComparisonData(
   
   for (let storage = 100; storage <= maxStorage; storage += step) {
     const standardCost = calculateStandardMonthlyCost(
-      instanceType, storage, ioRequests, useReservedInstance, reservedInstanceType
+      instanceType, storage, ioRequests, useReservedInstance, reservedInstanceType, region
     );
     
     const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-      instanceType, storage, useReservedInstance, reservedInstanceType
+      instanceType, storage, useReservedInstance, reservedInstanceType, region
     );
     
     dataPoints.push({
