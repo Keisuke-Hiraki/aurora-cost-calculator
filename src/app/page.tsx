@@ -13,7 +13,8 @@ import {
   generateBreakEvenGraphData,
   generateStorageComparisonData,
   determineOptimalAuroraType,
-  estimateACUFromInstanceType
+  estimateACUFromInstanceType,
+  REGIONS
 } from '@/utils/pricing';
 
 export default function Home() {
@@ -48,7 +49,8 @@ export default function Home() {
         formData.storageGB,
         formData.ioRequests,
         formData.useReservedInstance,
-        formData.reservedInstanceType as any
+        formData.reservedInstanceType as any,
+        formData.region
       );
 
       // Aurora I/O-Optimized コスト計算
@@ -56,7 +58,8 @@ export default function Home() {
         formData.instanceType,
         formData.storageGB,
         formData.useReservedInstance,
-        formData.reservedInstanceType as any
+        formData.reservedInstanceType as any,
+        formData.region
       );
 
       // 損益分岐点の計算
@@ -64,7 +67,8 @@ export default function Home() {
         formData.instanceType,
         formData.storageGB,
         formData.useReservedInstance,
-        formData.reservedInstanceType as any
+        formData.reservedInstanceType as any,
+        formData.region
       );
 
       // I/O量に対するコスト比較グラフ用データ
@@ -73,7 +77,8 @@ export default function Home() {
         formData.storageGB,
         Math.max(formData.ioRequests * 2, breakEvenPoint * 1.5, 100),
         formData.useReservedInstance,
-        formData.reservedInstanceType as any
+        formData.reservedInstanceType as any,
+        formData.region
       );
 
       // ストレージサイズに対するコスト比較グラフ用データ
@@ -82,7 +87,8 @@ export default function Home() {
         formData.ioRequests,
         Math.max(formData.storageGB * 2, 1000),
         formData.useReservedInstance,
-        formData.reservedInstanceType as any
+        formData.reservedInstanceType as any,
+        formData.region
       );
 
       // Aurora Serverless v2のコスト計算（選択した場合）
@@ -90,7 +96,8 @@ export default function Home() {
       if (formData.useServerlessV2) {
         serverlessCost = calculateServerlessV2MonthlyCost(
           formData.averageACU,
-          formData.storageGB
+          formData.storageGB,
+          formData.region
         );
       }
 
@@ -101,7 +108,8 @@ export default function Home() {
         const standardEquivalentACU = estimateACUFromInstanceType(formData.instanceType);
         const standardEquivalentCost = calculateServerlessV2MonthlyCost(
           standardEquivalentACU,
-          formData.storageGB
+          formData.storageGB,
+          formData.region
         );
 
         if (serverlessCost! < Math.min(standardCost, ioOptimizedCost)) {
@@ -118,7 +126,8 @@ export default function Home() {
           formData.storageGB,
           formData.ioRequests,
           formData.useReservedInstance,
-          formData.reservedInstanceType as any
+          formData.reservedInstanceType as any,
+          formData.region
         );
         recommendedOption = recommendedType;
       }
@@ -155,6 +164,9 @@ export default function Home() {
       {results && (
         <section className="mb-16">
           <h2 className="text-2xl font-bold mb-6">計算結果</h2>
+          <p className="mb-4">
+            選択したリージョン: <strong>{REGIONS[results.formData.region as keyof typeof REGIONS]}</strong>
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Aurora Standard カード */}
@@ -275,9 +287,9 @@ export default function Home() {
                     <h4 className="font-semibold mb-2">Aurora Standard コスト内訳</h4>
                     <ul className="text-sm space-y-1">
                       <li>インスタンスコスト: ${(results.standardCost * 0.7).toFixed(2)}</li>
-                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10).toFixed(2)}</li>
-                      <li>I/Oコスト: ${(results.formData.ioRequests * 0.20).toFixed(2)}</li>
-                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021).toFixed(2)}</li>
+                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
+                      <li>I/Oコスト: ${(results.formData.ioRequests * 0.20 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
+                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                     </ul>
                   </div>
                   
@@ -285,9 +297,9 @@ export default function Home() {
                     <h4 className="font-semibold mb-2">Aurora I/O-Optimized コスト内訳</h4>
                     <ul className="text-sm space-y-1">
                       <li>インスタンスコスト: ${(results.ioOptimizedCost * 0.85).toFixed(2)}</li>
-                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10).toFixed(2)}</li>
+                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                       <li>I/Oコスト: $0.00 (I/O料金なし)</li>
-                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021).toFixed(2)}</li>
+                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                     </ul>
                   </div>
                 </div>
@@ -302,9 +314,9 @@ export default function Home() {
                 <div>
                   <h4 className="font-semibold mb-2">Aurora Serverless v2 コスト内訳</h4>
                   <ul className="text-sm space-y-1">
-                    <li>ACUコスト: ${(results.formData.averageACU * 0.12 * 24 * 30).toFixed(2)}</li>
-                    <li>ストレージコスト: ${(results.formData.storageGB * 0.10).toFixed(2)}</li>
-                    <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021).toFixed(2)}</li>
+                    <li>ACUコスト: ${(results.formData.averageACU * 0.12 * 24 * 30 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
+                    <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
+                    <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                   </ul>
                 </div>
               </>
