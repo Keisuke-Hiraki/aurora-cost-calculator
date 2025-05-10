@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { INSTANCE_TYPES } from '../utils/pricing';
+import { INSTANCE_TYPES, REGIONS } from '../utils/pricing';
 
 interface InputFormProps {
   onSubmit: (formData: FormData) => void;
@@ -15,6 +15,7 @@ export interface FormData {
   useServerlessV2: boolean;
   averageACU: number;
   showCurrentUsage: boolean;
+  region: string;
 }
 
 const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) => {
@@ -27,6 +28,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
     useServerlessV2: false,
     averageACU: 8,
     showCurrentUsage: false,
+    region: 'ap-northeast-1',
   });
 
   const handleChange = (
@@ -66,6 +68,26 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 左カラム - 基本設定 */}
         <div className="space-y-4">
+          <div>
+            <label htmlFor="region" className="block text-sm font-medium mb-1">
+              リージョン
+            </label>
+            <select
+              id="region"
+              name="region"
+              value={formData.region}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={isLoading}
+            >
+              {Object.entries(REGIONS).map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center mb-4">
             <input
               type="checkbox"
