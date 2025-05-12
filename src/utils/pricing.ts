@@ -148,7 +148,7 @@ export const BASE_PRICING = {
 };
 
 // エンジンタイプに応じたインスタンスタイプを取得する
-export function getInstanceTypes(engine: 'mysql' | 'postgresql') {
+export function getInstanceTypes(engine: 'mysql' | 'postgresql'): string[] {
   try {
     // エンジンに応じたインスタンスタイプを取得
     const instanceTypeData = require('../data/instance-types.json');
@@ -157,12 +157,12 @@ export function getInstanceTypes(engine: 'mysql' | 'postgresql') {
       // MySQLのインスタンスタイプを取得
       const mysqlInstanceTypes = instanceTypeData.mysql;
       // すべてのインスタンスタイプを平坦化して返す
-      return Object.values(mysqlInstanceTypes).flat();
+      return Object.values(mysqlInstanceTypes).flat() as string[];
     } else {
       // PostgreSQLのインスタンスタイプを取得
       const postgresqlInstanceTypes = instanceTypeData.postgresql;
       // すべてのインスタンスタイプを平坦化して返す
-      return Object.values(postgresqlInstanceTypes).flat();
+      return Object.values(postgresqlInstanceTypes).flat() as string[];
     }
   } catch (error) {
     console.error(`インスタンスタイプの読み込みエラー: ${error}`);
