@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { INSTANCE_TYPES, REGIONS } from '../utils/pricing';
+import { INSTANCE_TYPES, REGIONS, ENGINES } from '../utils/pricing';
 
 interface InputFormProps {
   onSubmit: (formData: FormData) => void;
@@ -7,6 +7,7 @@ interface InputFormProps {
 }
 
 export interface FormData {
+  engine: 'mysql' | 'postgresql';
   instanceType: string;
   storageGB: number;
   ioRequests: number;
@@ -20,6 +21,7 @@ export interface FormData {
 
 const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) => {
   const [formData, setFormData] = useState<FormData>({
+    engine: 'mysql',
     instanceType: 'db.r6g.xlarge',
     storageGB: 500,
     ioRequests: 50,
@@ -81,6 +83,26 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
               disabled={isLoading}
             >
               {Object.entries(REGIONS).map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="engine" className="block text-sm font-medium mb-1">
+              データベースエンジン
+            </label>
+            <select
+              id="engine"
+              name="engine"
+              value={formData.engine}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={isLoading}
+            >
+              {Object.entries(ENGINES).map(([code, name]) => (
                 <option key={code} value={code}>
                   {name}
                 </option>
