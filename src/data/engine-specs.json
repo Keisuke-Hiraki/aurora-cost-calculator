@@ -1,0 +1,18 @@
+{
+  "page_size": {
+    "mysql": 16,
+    "postgresql": 8
+  },
+  "features": {
+    "mysql": {
+      "max_throughput_increase": "5倍",
+      "binary_log_replication": true,
+      "backtrack": true
+    },
+    "postgresql": {
+      "max_throughput_increase": "3倍",
+      "logical_replication": true,
+      "extensions": true
+    }
+  }
+}
