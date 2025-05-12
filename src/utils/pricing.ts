@@ -147,7 +147,31 @@ export const BASE_PRICING = {
   }
 };
 
-// インスタンスタイプ一覧
+// エンジンタイプに応じたインスタンスタイプを取得する
+export function getInstanceTypes(engine: 'mysql' | 'postgresql') {
+  try {
+    // エンジンに応じたインスタンスタイプを取得
+    const instanceTypeData = require('../data/instance-types.json');
+    
+    if (engine === 'mysql') {
+      // MySQLのインスタンスタイプを取得
+      const mysqlInstanceTypes = instanceTypeData.mysql;
+      // すべてのインスタンスタイプを平坦化して返す
+      return Object.values(mysqlInstanceTypes).flat();
+    } else {
+      // PostgreSQLのインスタンスタイプを取得
+      const postgresqlInstanceTypes = instanceTypeData.postgresql;
+      // すべてのインスタンスタイプを平坦化して返す
+      return Object.values(postgresqlInstanceTypes).flat();
+    }
+  } catch (error) {
+    console.error(`インスタンスタイプの読み込みエラー: ${error}`);
+    // エラーの場合はプレースホルダーとして基本インスタンスを返す
+    return Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
+  }
+}
+
+// インスタンスタイプ一覧（この行は下位互換性のために残します）
 export const INSTANCE_TYPES = Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
 
 // エンジンタイプに応じた料金データをインポート
