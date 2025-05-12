@@ -1,0 +1,4 @@
+{
+  "mysql": "Aurora MySQL",
+  "postgresql": "Aurora PostgreSQL"
+}
