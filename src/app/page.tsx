@@ -14,7 +14,8 @@ import {
   generateStorageComparisonData,
   determineOptimalAuroraType,
   estimateACUFromInstanceType,
-  REGIONS
+  REGIONS,
+  ENGINES
 } from '@/utils/pricing';
 
 export default function Home() {
@@ -50,7 +51,8 @@ export default function Home() {
         formData.ioRequests,
         formData.useReservedInstance,
         formData.reservedInstanceType as any,
-        formData.region
+        formData.region,
+        formData.engine
       );
 
       // Aurora I/O-Optimized コスト計算
@@ -59,7 +61,8 @@ export default function Home() {
         formData.storageGB,
         formData.useReservedInstance,
         formData.reservedInstanceType as any,
-        formData.region
+        formData.region,
+        formData.engine
       );
 
       // 損益分岐点の計算
@@ -68,7 +71,8 @@ export default function Home() {
         formData.storageGB,
         formData.useReservedInstance,
         formData.reservedInstanceType as any,
-        formData.region
+        formData.region,
+        formData.engine
       );
 
       // I/O量に対するコスト比較グラフ用データ
@@ -78,7 +82,8 @@ export default function Home() {
         Math.max(formData.ioRequests * 2, breakEvenPoint * 1.5, 100),
         formData.useReservedInstance,
         formData.reservedInstanceType as any,
-        formData.region
+        formData.region,
+        formData.engine
       );
 
       // ストレージサイズに対するコスト比較グラフ用データ
@@ -88,7 +93,8 @@ export default function Home() {
         Math.max(formData.storageGB * 2, 1000),
         formData.useReservedInstance,
         formData.reservedInstanceType as any,
-        formData.region
+        formData.region,
+        formData.engine
       );
 
       // Aurora Serverless v2のコスト計算（選択した場合）
@@ -97,7 +103,8 @@ export default function Home() {
         serverlessCost = calculateServerlessV2MonthlyCost(
           formData.averageACU,
           formData.storageGB,
-          formData.region
+          formData.region,
+          formData.engine
         );
       }
 
@@ -109,7 +116,8 @@ export default function Home() {
         const standardEquivalentCost = calculateServerlessV2MonthlyCost(
           standardEquivalentACU,
           formData.storageGB,
-          formData.region
+          formData.region,
+          formData.engine
         );
 
         if (serverlessCost! < Math.min(standardCost, ioOptimizedCost)) {
@@ -127,7 +135,8 @@ export default function Home() {
           formData.ioRequests,
           formData.useReservedInstance,
           formData.reservedInstanceType as any,
-          formData.region
+          formData.region,
+          formData.engine
         );
         recommendedOption = recommendedType;
       }
@@ -166,6 +175,9 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-6">計算結果</h2>
           <p className="mb-4">
             選択したリージョン: <strong>{REGIONS[results.formData.region as keyof typeof REGIONS]}</strong>
+          </p>
+          <p className="mb-4">
+            データベースエンジン: <strong>{ENGINES[results.formData.engine]}</strong>
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -314,7 +326,7 @@ export default function Home() {
                 <div>
                   <h4 className="font-semibold mb-2">Aurora Serverless v2 コスト内訳</h4>
                   <ul className="text-sm space-y-1">
-                    <li>ACUコスト: ${(results.formData.averageACU * 0.12 * 24 * 30 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
+                    <li>ACUコスト: ${(results.formData.averageACU * (results.formData.engine === 'mysql' ? 0.12 : 0.14) * 24 * 30 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
                     <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                     <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                   </ul>
