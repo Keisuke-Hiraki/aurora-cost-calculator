@@ -1,0 +1,55 @@
+{
+  "STANDARD": {
+    "INSTANCE_PRICING": {
+      "db.t4g.medium": 0.082,
+      "db.t4g.large": 0.164,
+      "db.r6g.large": 0.33,
+      "db.r6g.xlarge": 0.66,
+      "db.r6g.2xlarge": 1.32,
+      "db.r6g.4xlarge": 2.64,
+      "db.r6g.8xlarge": 5.28,
+      "db.r6g.12xlarge": 7.92,
+      "db.r6g.16xlarge": 10.56,
+      "db.r5.large": 0.37,
+      "db.r5.xlarge": 0.74,
+      "db.r5.2xlarge": 1.48,
+      "db.r5.4xlarge": 2.96,
+      "db.r5.8xlarge": 5.92,
+      "db.r5.12xlarge": 8.88,
+      "db.r5.16xlarge": 11.84,
+      "db.r5.24xlarge": 17.76
+    },
+    "STORAGE_PRICING": 0.10,
+    "IO_PRICING": 0.20,
+    "BACKUP_PRICING": 0.021
+  },
+  "IO_OPTIMIZED": {
+    "INSTANCE_PRICING": {
+      "db.t4g.medium": 0.107,
+      "db.t4g.large": 0.213,
+      "db.r6g.large": 0.429,
+      "db.r6g.xlarge": 0.858,
+      "db.r6g.2xlarge": 1.716,
+      "db.r6g.4xlarge": 3.432,
+      "db.r6g.8xlarge": 6.864,
+      "db.r6g.12xlarge": 10.296,
+      "db.r6g.16xlarge": 13.728,
+      "db.r5.large": 0.481,
+      "db.r5.xlarge": 0.962,
+      "db.r5.2xlarge": 1.924,
+      "db.r5.4xlarge": 3.848,
+      "db.r5.8xlarge": 7.696,
+      "db.r5.12xlarge": 11.544,
+      "db.r5.16xlarge": 15.392,
+      "db.r5.24xlarge": 23.088
+    },
+    "STORAGE_PRICING": 0.10,
+    "IO_PRICING": 0,
+    "BACKUP_PRICING": 0.021
+  },
+  "SERVERLESS_V2": {
+    "ACU_PRICING": 0.14,
+    "STORAGE_PRICING": 0.10,
+    "BACKUP_PRICING": 0.021
+  }
+}
