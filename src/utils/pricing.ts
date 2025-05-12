@@ -1,3 +1,9 @@
+// データベースエンジン一覧
+export const ENGINES = {
+  'mysql': 'Aurora MySQL',
+  'postgresql': 'Aurora PostgreSQL'
+};
+
 // AWS リージョン一覧
 export const REGIONS = {
   'us-east-1': 'US East (N. Virginia)',
@@ -144,13 +150,35 @@ export const BASE_PRICING = {
 // インスタンスタイプ一覧
 export const INSTANCE_TYPES = Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
 
+// エンジンタイプに応じた料金データをインポート
+export function getPricingData(engine: 'mysql' | 'postgresql') {
+  try {
+    // 動的なインポートは難しいので、エンジンに応じて直接インポートする
+    if (engine === 'mysql') {
+      // MySQLの料金データを取得
+      const mysqlPricing = require('../data/pricing-mysql.json');
+      return mysqlPricing;
+    } else {
+      // PostgreSQLの料金データを取得
+      const postgresqlPricing = require('../data/pricing-postgresql.json');
+      return postgresqlPricing;
+    }
+  } catch (error) {
+    console.error(`料金データの読み込みエラー: ${error}`);
+    return BASE_PRICING; // フォールバックとして基本料金を返す
+  }
+}
+
 // 指定されたリージョンの料金を取得
-export function getPricingForRegion(region: string = 'us-east-1') {
+export function getPricingForRegion(region: string = 'us-east-1', engine: 'mysql' | 'postgresql' = 'mysql') {
   const regionMultiplier = REGION_MULTIPLIERS[region as keyof typeof REGION_MULTIPLIERS] || 1.0;
   const storageMultiplier = STORAGE_MULTIPLIERS[region as keyof typeof STORAGE_MULTIPLIERS] || 1.0;
   
+  // エンジンに応じた料金データを取得
+  const basePricing = getPricingData(engine);
+  
   // 基本料金をディープコピー
-  const regionalPricing = JSON.parse(JSON.stringify(BASE_PRICING));
+  const regionalPricing = JSON.parse(JSON.stringify(basePricing));
   
   // インスタンス料金をリージョンに合わせて調整
   for (const instanceType in regionalPricing.STANDARD.INSTANCE_PRICING) {
@@ -182,9 +210,10 @@ export function calculateStandardMonthlyCost(
   ioRequests: number, // 百万単位
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): number {
-  const pricing = getPricingForRegion(region);
+  const pricing = getPricingForRegion(region, engine);
   
   // インスタンス時間料金（USD/時間）
   let hourlyRate = pricing.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof pricing.STANDARD.INSTANCE_PRICING] || 0;
@@ -217,9 +246,10 @@ export function calculateIoOptimizedMonthlyCost(
   storageGB: number,
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): number {
-  const pricing = getPricingForRegion(region);
+  const pricing = getPricingForRegion(region, engine);
   
   // インスタンス時間料金（USD/時間）
   let hourlyRate = pricing.IO_OPTIMIZED.INSTANCE_PRICING[instanceType as keyof typeof pricing.IO_OPTIMIZED.INSTANCE_PRICING] || 0;
@@ -247,9 +277,10 @@ export function calculateIoOptimizedMonthlyCost(
 export function calculateServerlessV2MonthlyCost(
   averageACU: number, // 平均ACU使用量
   storageGB: number,
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): number {
-  const pricing = getPricingForRegion(region);
+  const pricing = getPricingForRegion(region, engine);
   
   // ACUコスト
   const acuCost = averageACU * pricing.SERVERLESS_V2.ACU_PRICING * 24 * 30;
@@ -271,7 +302,8 @@ export function determineOptimalAuroraType(
   ioRequests: number, // 百万単位
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): {
   recommendedType: string;
   standardCost: number;
@@ -281,11 +313,11 @@ export function determineOptimalAuroraType(
 } {
   // 各タイプのコスト計算
   const standardCost = calculateStandardMonthlyCost(
-    instanceType, storageGB, ioRequests, useReservedInstance, reservedInstanceType, region
+    instanceType, storageGB, ioRequests, useReservedInstance, reservedInstanceType, region, engine
   );
   
   const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-    instanceType, storageGB, useReservedInstance, reservedInstanceType, region
+    instanceType, storageGB, useReservedInstance, reservedInstanceType, region, engine
   );
   
   // 差額計算
@@ -293,7 +325,7 @@ export function determineOptimalAuroraType(
   const savingsPercentage = (savingsAmount / Math.max(standardCost, ioOptimizedCost)) * 100;
   
   // 最適なタイプを判断
-  const recommendedType = standardCost < ioOptimizedCost ? 'Aurora Standard' : 'Aurora I/O-Optimized';
+  const recommendedType = standardCost < ioOptimizedCost ? 'Standard' : 'I/O-Optimized';
   
   return {
     recommendedType,
@@ -310,9 +342,10 @@ export function calculateBreakEvenIORequests(
   storageGB: number,
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): number {
-  const pricing = getPricingForRegion(region);
+  const pricing = getPricingForRegion(region, engine);
   
   // インスタンス料金（リザーブドインスタンス割引適用済み）
   let standardHourlyRate = pricing.STANDARD.INSTANCE_PRICING[instanceType as keyof typeof pricing.STANDARD.INSTANCE_PRICING] || 0;
@@ -352,7 +385,8 @@ export function generateBreakEvenGraphData(
   maxIO: number = 100, // 最大I/O量（100万リクエスト単位）
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): Array<{io: number; standardCost: number; ioOptimizedCost: number}> {
   const dataPoints = [];
   
@@ -361,11 +395,11 @@ export function generateBreakEvenGraphData(
   
   for (let io = 0; io <= maxIO; io += step) {
     const standardCost = calculateStandardMonthlyCost(
-      instanceType, storageGB, io, useReservedInstance, reservedInstanceType, region
+      instanceType, storageGB, io, useReservedInstance, reservedInstanceType, region, engine
     );
     
     const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-      instanceType, storageGB, useReservedInstance, reservedInstanceType, region
+      instanceType, storageGB, useReservedInstance, reservedInstanceType, region, engine
     );
     
     dataPoints.push({
@@ -385,7 +419,8 @@ export function generateStorageComparisonData(
   maxStorage: number = 1000, // 最大ストレージ（GB）
   useReservedInstance: boolean = false,
   reservedInstanceType: keyof typeof BASE_PRICING.RESERVED_INSTANCE = 'ONE_YEAR_PARTIAL_UPFRONT',
-  region: string = 'us-east-1'
+  region: string = 'us-east-1',
+  engine: 'mysql' | 'postgresql' = 'mysql'
 ): Array<{storage: number; standardCost: number; ioOptimizedCost: number}> {
   const dataPoints = [];
   
@@ -394,11 +429,11 @@ export function generateStorageComparisonData(
   
   for (let storage = 100; storage <= maxStorage; storage += step) {
     const standardCost = calculateStandardMonthlyCost(
-      instanceType, storage, ioRequests, useReservedInstance, reservedInstanceType, region
+      instanceType, storage, ioRequests, useReservedInstance, reservedInstanceType, region, engine
     );
     
     const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-      instanceType, storage, useReservedInstance, reservedInstanceType, region
+      instanceType, storage, useReservedInstance, reservedInstanceType, region, engine
     );
     
     dataPoints.push({
