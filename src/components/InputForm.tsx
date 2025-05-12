@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { INSTANCE_TYPES, REGIONS, ENGINES } from '../utils/pricing';
+import { REGIONS, ENGINES, getInstanceTypes } from '../utils/pricing';
 
 interface InputFormProps {
   onSubmit: (formData: FormData) => void;
@@ -32,6 +32,27 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
     showCurrentUsage: false,
     region: 'ap-northeast-1',
   });
+
+  // エンジンタイプに応じたインスタンスタイプのリスト
+  const [availableInstanceTypes, setAvailableInstanceTypes] = useState<string[]>([]);
+
+  // エンジンが変更されたときにインスタンスタイプのリストを更新
+  useEffect(() => {
+    // エンジンに応じたインスタンスタイプのリストを取得
+    const instanceTypes = getInstanceTypes(formData.engine);
+    setAvailableInstanceTypes(instanceTypes as string[]);
+
+    // 現在選択されているインスタンスタイプが新しいリストに含まれているか確認
+    const isCurrentInstanceTypeValid = instanceTypes.includes(formData.instanceType);
+    
+    // 含まれていない場合は、リストの最初のインスタンスタイプを選択
+    if (!isCurrentInstanceTypeValid && instanceTypes.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        instanceType: instanceTypes[0]
+      }));
+    }
+  }, [formData.engine]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -139,7 +160,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   disabled={isLoading}
                 >
-                  {INSTANCE_TYPES.map((type) => (
+                  {availableInstanceTypes.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
