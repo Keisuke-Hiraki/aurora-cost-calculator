@@ -39,8 +39,8 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
   // エンジンが変更されたときにインスタンスタイプのリストを更新
   useEffect(() => {
     // エンジンに応じたインスタンスタイプのリストを取得
-    const instanceTypes = getInstanceTypes(formData.engine);
-    setAvailableInstanceTypes(instanceTypes as string[]);
+    const instanceTypes = getInstanceTypes(formData.engine) as string[];
+    setAvailableInstanceTypes(instanceTypes);
 
     // 現在選択されているインスタンスタイプが新しいリストに含まれているか確認
     const isCurrentInstanceTypeValid = instanceTypes.includes(formData.instanceType);
@@ -49,7 +49,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading = false }) =>
     if (!isCurrentInstanceTypeValid && instanceTypes.length > 0) {
       setFormData(prev => ({
         ...prev,
-        instanceType: instanceTypes[0]
+        instanceType: instanceTypes[0] as string
       }));
     }
   }, [formData.engine]);
