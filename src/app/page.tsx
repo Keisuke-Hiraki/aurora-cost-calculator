@@ -15,7 +15,8 @@ import {
   determineOptimalAuroraType,
   estimateACUFromInstanceType,
   REGIONS,
-  ENGINES
+  ENGINES,
+  HOURS_PER_MONTH
 } from '@/utils/pricing';
 
 export default function Home() {
@@ -326,7 +327,7 @@ export default function Home() {
                 <div>
                   <h4 className="font-semibold mb-2">Aurora Serverless v2 コスト内訳</h4>
                   <ul className="text-sm space-y-1">
-                    <li>ACUコスト: ${(results.formData.averageACU * (results.formData.engine === 'mysql' ? 0.12 : 0.14) * 24 * 30 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
+                    <li>ACUコスト: ${(results.formData.averageACU * (results.formData.engine === 'mysql' ? 0.12 : 0.14) * HOURS_PER_MONTH * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
                     <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                     <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
                   </ul>
