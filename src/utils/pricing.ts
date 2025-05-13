@@ -23,6 +23,9 @@ export const REGIONS = {
   'sa-east-1': 'South America (São Paulo)'
 };
 
+// 1ヶ月の時間数（720時間 = 30日 × 24時間）
+export const HOURS_PER_MONTH = 720;
+
 // リージョンごとのインスタンス料金乗数
 // 基準は us-east-1 で、それに対する相対料金
 const REGION_MULTIPLIERS = {
@@ -248,8 +251,8 @@ export function calculateStandardMonthlyCost(
     hourlyRate = hourlyRate * (1 - discount);
   }
   
-  // 月間インスタンスコスト（30日で計算）
-  const instanceCost = hourlyRate * 24 * 30;
+  // 月間インスタンスコスト（720時間 = 30日 × 24時間で計算）
+  const instanceCost = hourlyRate * HOURS_PER_MONTH;
   
   // ストレージコスト
   const storageCost = storageGB * pricing.STANDARD.STORAGE_PRICING;
@@ -284,8 +287,8 @@ export function calculateIoOptimizedMonthlyCost(
     hourlyRate = hourlyRate * (1 - discount);
   }
   
-  // 月間インスタンスコスト（30日で計算）
-  const instanceCost = hourlyRate * 24 * 30;
+  // 月間インスタンスコスト（720時間 = 30日 × 24時間で計算）
+  const instanceCost = hourlyRate * HOURS_PER_MONTH;
   
   // ストレージコスト
   const storageCost = storageGB * pricing.IO_OPTIMIZED.STORAGE_PRICING;
@@ -306,8 +309,8 @@ export function calculateServerlessV2MonthlyCost(
 ): number {
   const pricing = getPricingForRegion(region, engine);
   
-  // ACUコスト
-  const acuCost = averageACU * pricing.SERVERLESS_V2.ACU_PRICING * 24 * 30;
+  // ACUコスト（720時間 = 30日 × 24時間で計算）
+  const acuCost = averageACU * pricing.SERVERLESS_V2.ACU_PRICING * HOURS_PER_MONTH;
   
   // ストレージコスト
   const storageCost = storageGB * pricing.SERVERLESS_V2.STORAGE_PRICING;
@@ -382,11 +385,11 @@ export function calculateBreakEvenIORequests(
   }
   
   // 月間固定コスト（インスタンス + ストレージ + バックアップ）
-  const standardFixedCost = (standardHourlyRate * 24 * 30) + 
+  const standardFixedCost = (standardHourlyRate * HOURS_PER_MONTH) + 
                            (storageGB * pricing.STANDARD.STORAGE_PRICING) + 
                            (storageGB * 0.25 * pricing.STANDARD.BACKUP_PRICING);
   
-  const ioOptimizedFixedCost = (ioOptimizedHourlyRate * 24 * 30) + 
+  const ioOptimizedFixedCost = (ioOptimizedHourlyRate * HOURS_PER_MONTH) + 
                               (storageGB * pricing.IO_OPTIMIZED.STORAGE_PRICING) + 
                               (storageGB * 0.25 * pricing.IO_OPTIMIZED.BACKUP_PRICING);
   
