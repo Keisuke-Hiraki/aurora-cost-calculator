@@ -7,20 +7,7 @@ export const ENGINES = {
 // AWS リージョン一覧
 export const REGIONS = {
   'us-east-1': 'US East (N. Virginia)',
-  'us-east-2': 'US East (Ohio)',
-  'us-west-1': 'US West (N. California)',
-  'us-west-2': 'US West (Oregon)',
-  'ap-northeast-1': 'Asia Pacific (Tokyo)',
-  'ap-northeast-2': 'Asia Pacific (Seoul)',
-  'ap-northeast-3': 'Asia Pacific (Osaka)',
-  'ap-southeast-1': 'Asia Pacific (Singapore)',
-  'ap-southeast-2': 'Asia Pacific (Sydney)',
-  'ap-south-1': 'Asia Pacific (Mumbai)',
-  'eu-central-1': 'Europe (Frankfurt)',
-  'eu-west-1': 'Europe (Ireland)',
-  'eu-west-2': 'Europe (London)',
-  'eu-west-3': 'Europe (Paris)',
-  'sa-east-1': 'South America (São Paulo)'
+  'ap-northeast-1': 'Asia Pacific (Tokyo)'
 };
 
 // 1ヶ月の時間数（720時間 = 30日 × 24時間）
@@ -36,83 +23,6 @@ export const RESERVED_INSTANCE_DISCOUNTS = {
   ONE_YEAR_ALL_UPFRONT: 0.45, // 45%割引
   // 3年間、全額前払い
   THREE_YEAR_ALL_UPFRONT: 0.65, // 65%割引
-};
-
-// Aurora料金設定（基本は米国東部（バージニア北部）リージョン）
-// 下位互換性のために残しています
-export const BASE_PRICING = {
-  // Aurora Standard料金
-  STANDARD: {
-    // インスタンスタイプごとの時間単価（USD/時間）
-    INSTANCE_PRICING: {
-      'db.t4g.medium': 0.072,
-      'db.t4g.large': 0.144,
-      'db.r6g.large': 0.29,
-      'db.r6g.xlarge': 0.58,
-      'db.r6g.2xlarge': 1.16,
-      'db.r6g.4xlarge': 2.32,
-      'db.r6g.8xlarge': 4.64,
-      'db.r6g.12xlarge': 6.96,
-      'db.r6g.16xlarge': 9.28,
-      'db.r5.large': 0.33,
-      'db.r5.xlarge': 0.66,
-      'db.r5.2xlarge': 1.32,
-      'db.r5.4xlarge': 2.64,
-      'db.r5.8xlarge': 5.28,
-      'db.r5.12xlarge': 7.92,
-      'db.r5.16xlarge': 10.56,
-      'db.r5.24xlarge': 15.84,
-    },
-    // ストレージ料金（USD/GiB/月）
-    STORAGE_PRICING: 0.10,
-    // I/O料金（USD/100万リクエスト）
-    IO_PRICING: 0.20,
-    // バックアップストレージ料金（USD/GiB/月）
-    BACKUP_PRICING: 0.021,
-  },
-  
-  // Aurora I/O-Optimized料金
-  IO_OPTIMIZED: {
-    // インスタンスタイプごとの時間単価（USD/時間） - Standard料金の約1.3倍
-    INSTANCE_PRICING: {
-      'db.t4g.medium': 0.094,
-      'db.t4g.large': 0.187,
-      'db.r6g.large': 0.377,
-      'db.r6g.xlarge': 0.754,
-      'db.r6g.2xlarge': 1.508,
-      'db.r6g.4xlarge': 3.016,
-      'db.r6g.8xlarge': 6.032,
-      'db.r6g.12xlarge': 9.048,
-      'db.r6g.16xlarge': 12.064,
-      'db.r5.large': 0.429,
-      'db.r5.xlarge': 0.858,
-      'db.r5.2xlarge': 1.716,
-      'db.r5.4xlarge': 3.432,
-      'db.r5.8xlarge': 6.864,
-      'db.r5.12xlarge': 10.296,
-      'db.r5.16xlarge': 13.728,
-      'db.r5.24xlarge': 20.592,
-    },
-    // ストレージ料金（USD/GiB/月）
-    STORAGE_PRICING: 0.10,
-    // I/O料金 - I/O-Optimizedでは追加料金なし
-    IO_PRICING: 0,
-    // バックアップストレージ料金（USD/GiB/月）
-    BACKUP_PRICING: 0.021,
-  },
-  
-  // Aurora Serverless v2料金
-  SERVERLESS_V2: {
-    // ACU単価（USD/ACU時間）
-    ACU_PRICING: 0.12,
-    // ストレージ料金（USD/GiB/月）
-    STORAGE_PRICING: 0.10,
-    // バックアップストレージ料金（USD/GiB/月）
-    BACKUP_PRICING: 0.021,
-  },
-  
-  // リザーブドインスタンスの割引率（概算）
-  RESERVED_INSTANCE: RESERVED_INSTANCE_DISCOUNTS
 };
 
 // エンジンタイプに応じたインスタンスタイプを取得する
@@ -134,13 +44,28 @@ export function getInstanceTypes(engine: 'mysql' | 'postgresql'): string[] {
     }
   } catch (error) {
     console.error(`インスタンスタイプの読み込みエラー: ${error}`);
-    // エラーの場合はプレースホルダーとして基本インスタンスを返す
-    return Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
+    // エラーの場合はデフォルト値を返す
+    return [
+      'db.t4g.medium',
+      'db.t4g.large',
+      'db.r6g.large',
+      'db.r6g.xlarge',
+      'db.r6g.2xlarge',
+      'db.r6g.4xlarge',
+      'db.r6g.8xlarge',
+      'db.r6g.12xlarge',
+      'db.r6g.16xlarge',
+      'db.r5.large',
+      'db.r5.xlarge',
+      'db.r5.2xlarge',
+      'db.r5.4xlarge',
+      'db.r5.8xlarge',
+      'db.r5.12xlarge',
+      'db.r5.16xlarge',
+      'db.r5.24xlarge'
+    ];
   }
 }
-
-// インスタンスタイプ一覧（この行は下位互換性のために残します）
-export const INSTANCE_TYPES = Object.keys(BASE_PRICING.STANDARD.INSTANCE_PRICING);
 
 // 指定されたリージョンの料金を取得
 export function getPricingForRegion(region: string = 'us-east-1', engine: 'mysql' | 'postgresql' = 'mysql') {
@@ -161,43 +86,126 @@ export function getPricingForRegion(region: string = 'us-east-1', engine: 'mysql
       return pricingData;
     }
     
-    // 該当するリージョン・エンジンの料金データがない場合、上位のレベルに戻す
-    if (regionPricing['us-east-1'] && regionPricing['us-east-1'][engine]) {
-      // us-east-1のエンジン固有の料金を返す
-      const pricingData = {
-        ...regionPricing['us-east-1'][engine],
-        RESERVED_INSTANCE: regionPricing.RESERVED_INSTANCE || RESERVED_INSTANCE_DISCOUNTS
-      };
-      return pricingData;
-    }
+    // 該当するリージョン・エンジンの料金データがない場合、デフォルト値を返す
+    const defaultPricing = {
+      STANDARD: {
+        INSTANCE_PRICING: {
+          'db.t4g.medium': 0.072,
+          'db.t4g.large': 0.144,
+          'db.r6g.large': 0.29,
+          'db.r6g.xlarge': 0.58,
+          'db.r6g.2xlarge': 1.16,
+          'db.r6g.4xlarge': 2.32,
+          'db.r6g.8xlarge': 4.64,
+          'db.r6g.12xlarge': 6.96,
+          'db.r6g.16xlarge': 9.28,
+          'db.r5.large': 0.33,
+          'db.r5.xlarge': 0.66,
+          'db.r5.2xlarge': 1.32,
+          'db.r5.4xlarge': 2.64,
+          'db.r5.8xlarge': 5.28,
+          'db.r5.12xlarge': 7.92,
+          'db.r5.16xlarge': 10.56,
+          'db.r5.24xlarge': 15.84
+        },
+        STORAGE_PRICING: 0.10,
+        IO_PRICING: 0.20,
+        BACKUP_PRICING: 0.021
+      },
+      IO_OPTIMIZED: {
+        INSTANCE_PRICING: {
+          'db.t4g.medium': 0.094,
+          'db.t4g.large': 0.187,
+          'db.r6g.large': 0.377,
+          'db.r6g.xlarge': 0.754,
+          'db.r6g.2xlarge': 1.508,
+          'db.r6g.4xlarge': 3.016,
+          'db.r6g.8xlarge': 6.032,
+          'db.r6g.12xlarge': 9.048,
+          'db.r6g.16xlarge': 12.064,
+          'db.r5.large': 0.429,
+          'db.r5.xlarge': 0.858,
+          'db.r5.2xlarge': 1.716,
+          'db.r5.4xlarge': 3.432,
+          'db.r5.8xlarge': 6.864,
+          'db.r5.12xlarge': 10.296,
+          'db.r5.16xlarge': 13.728,
+          'db.r5.24xlarge': 20.592
+        },
+        STORAGE_PRICING: 0.10,
+        IO_PRICING: 0,
+        BACKUP_PRICING: 0.021
+      },
+      SERVERLESS_V2: {
+        ACU_PRICING: 0.12,
+        STORAGE_PRICING: 0.10,
+        BACKUP_PRICING: 0.021
+      },
+      RESERVED_INSTANCE: RESERVED_INSTANCE_DISCOUNTS
+    };
     
-    // 最終的なフォールバック
-    const basePricingData = getPricingData(engine);
-    return basePricingData;
+    return defaultPricing;
   } catch (error) {
     console.error(`リージョン別料金データの読み込みエラー: ${error}`);
-    // エラーの場合はフォールバックとして基本料金データを返す
-    return getPricingData(engine);
-  }
-}
-
-// エンジンタイプに応じた料金データをインポート
-// 下位互換性のために残しています
-export function getPricingData(engine: 'mysql' | 'postgresql') {
-  try {
-    // 動的なインポートは難しいので、エンジンに応じて直接インポートする
-    if (engine === 'mysql') {
-      // MySQLの料金データを取得
-      const mysqlPricing = require('../data/pricing-mysql.json');
-      return mysqlPricing;
-    } else {
-      // PostgreSQLの料金データを取得
-      const postgresqlPricing = require('../data/pricing-postgresql.json');
-      return postgresqlPricing;
-    }
-  } catch (error) {
-    console.error(`料金データの読み込みエラー: ${error}`);
-    return BASE_PRICING; // フォールバックとして基本料金を返す
+    // エラーの場合はデフォルト値を返す
+    const defaultPricing = {
+      STANDARD: {
+        INSTANCE_PRICING: {
+          'db.t4g.medium': 0.072,
+          'db.t4g.large': 0.144,
+          'db.r6g.large': 0.29,
+          'db.r6g.xlarge': 0.58,
+          'db.r6g.2xlarge': 1.16,
+          'db.r6g.4xlarge': 2.32,
+          'db.r6g.8xlarge': 4.64,
+          'db.r6g.12xlarge': 6.96,
+          'db.r6g.16xlarge': 9.28,
+          'db.r5.large': 0.33,
+          'db.r5.xlarge': 0.66,
+          'db.r5.2xlarge': 1.32,
+          'db.r5.4xlarge': 2.64,
+          'db.r5.8xlarge': 5.28,
+          'db.r5.12xlarge': 7.92,
+          'db.r5.16xlarge': 10.56,
+          'db.r5.24xlarge': 15.84
+        },
+        STORAGE_PRICING: 0.10,
+        IO_PRICING: 0.20,
+        BACKUP_PRICING: 0.021
+      },
+      IO_OPTIMIZED: {
+        INSTANCE_PRICING: {
+          'db.t4g.medium': 0.094,
+          'db.t4g.large': 0.187,
+          'db.r6g.large': 0.377,
+          'db.r6g.xlarge': 0.754,
+          'db.r6g.2xlarge': 1.508,
+          'db.r6g.4xlarge': 3.016,
+          'db.r6g.8xlarge': 6.032,
+          'db.r6g.12xlarge': 9.048,
+          'db.r6g.16xlarge': 12.064,
+          'db.r5.large': 0.429,
+          'db.r5.xlarge': 0.858,
+          'db.r5.2xlarge': 1.716,
+          'db.r5.4xlarge': 3.432,
+          'db.r5.8xlarge': 6.864,
+          'db.r5.12xlarge': 10.296,
+          'db.r5.16xlarge': 13.728,
+          'db.r5.24xlarge': 20.592
+        },
+        STORAGE_PRICING: 0.10,
+        IO_PRICING: 0,
+        BACKUP_PRICING: 0.021
+      },
+      SERVERLESS_V2: {
+        ACU_PRICING: 0.12,
+        STORAGE_PRICING: 0.10,
+        BACKUP_PRICING: 0.021
+      },
+      RESERVED_INSTANCE: RESERVED_INSTANCE_DISCOUNTS
+    };
+    
+    return defaultPricing;
   }
 }
 
