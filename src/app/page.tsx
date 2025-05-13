@@ -16,7 +16,8 @@ import {
   estimateACUFromInstanceType,
   REGIONS,
   ENGINES,
-  HOURS_PER_MONTH
+  HOURS_PER_MONTH,
+  getPricingForRegion
 } from '@/utils/pricing';
 
 export default function Home() {
@@ -38,6 +39,31 @@ export default function Home() {
       ioOptimizedCost: number;
     }>;
     recommendedOption: string;
+    // 詳細なコスト内訳を追加
+    standardCostDetails: {
+      instanceCost: number;
+      storageCost: number;
+      ioCost: number;
+      backupCost: number;
+    };
+    ioOptimizedCostDetails: {
+      instanceCost: number;
+      storageCost: number;
+      backupCost: number;
+    };
+    serverlessCostDetails?: {
+      acuCost: number;
+      storageCost: number;
+      backupCost: number;
+    };
+    // 料金情報も保存
+    pricingInfo: {
+      hourlyRate: { standard: number; ioOptimized: number };
+      acuRate?: number;
+      storageRate: number;
+      ioRate: number;
+      backupRate: number;
+    };
   } | null>(null);
 
   const handleSubmit = (formData: FormData) => {
@@ -45,26 +71,54 @@ export default function Home() {
 
     // 計算処理をシミュレートするための短いタイムアウト
     setTimeout(() => {
-      // Aurora Standard コスト計算
-      const standardCost = calculateStandardMonthlyCost(
-        formData.instanceType,
-        formData.storageGB,
-        formData.ioRequests,
-        formData.useReservedInstance,
-        formData.reservedInstanceType as any,
-        formData.region,
-        formData.engine
-      );
-
-      // Aurora I/O-Optimized コスト計算
-      const ioOptimizedCost = calculateIoOptimizedMonthlyCost(
-        formData.instanceType,
-        formData.storageGB,
-        formData.useReservedInstance,
-        formData.reservedInstanceType as any,
-        formData.region,
-        formData.engine
-      );
+      // 料金データの取得
+      const pricing = getPricingForRegion(formData.region, formData.engine);
+      
+      // 時間料金の取得（リザーブドインスタンス割引適用前）
+      let standardHourlyRate = pricing.STANDARD.INSTANCE_PRICING[formData.instanceType] || 0;
+      let ioOptimizedHourlyRate = pricing.IO_OPTIMIZED.INSTANCE_PRICING[formData.instanceType] || 0;
+      let acuRate = pricing.SERVERLESS_V2.ACU_PRICING;
+      
+      // リザーブドインスタンスの割引率
+      let discount = 0;
+      if (formData.useReservedInstance) {
+        discount = pricing.RESERVED_INSTANCE[formData.reservedInstanceType as keyof typeof pricing.RESERVED_INSTANCE];
+        standardHourlyRate *= (1 - discount);
+        ioOptimizedHourlyRate *= (1 - discount);
+      }
+      
+      // ストレージ、I/O、バックアップレート
+      const storageRate = pricing.STANDARD.STORAGE_PRICING;
+      const ioRate = pricing.STANDARD.IO_PRICING;
+      const backupRate = pricing.STANDARD.BACKUP_PRICING;
+      
+      // Standard詳細コスト計算
+      const standardInstanceCost = standardHourlyRate * HOURS_PER_MONTH;
+      const standardStorageCost = formData.storageGB * storageRate;
+      const standardIoCost = formData.ioRequests * ioRate;
+      const standardBackupCost = formData.storageGB * 0.25 * backupRate; // バックアップはストレージの25%と想定
+      const standardCost = standardInstanceCost + standardStorageCost + standardIoCost + standardBackupCost;
+      
+      // I/O-Optimized詳細コスト計算
+      const ioOptimizedInstanceCost = ioOptimizedHourlyRate * HOURS_PER_MONTH;
+      const ioOptimizedStorageCost = formData.storageGB * storageRate;
+      const ioOptimizedBackupCost = formData.storageGB * 0.25 * backupRate;
+      const ioOptimizedCost = ioOptimizedInstanceCost + ioOptimizedStorageCost + ioOptimizedBackupCost;
+      
+      // Serverless v2コスト計算
+      let serverlessCost;
+      let serverlessCostDetails;
+      if (formData.useServerlessV2) {
+        const acuCost = formData.averageACU * acuRate * HOURS_PER_MONTH;
+        const serverlessStorageCost = formData.storageGB * storageRate;
+        const serverlessBackupCost = formData.storageGB * 0.25 * backupRate;
+        serverlessCost = acuCost + serverlessStorageCost + serverlessBackupCost;
+        serverlessCostDetails = {
+          acuCost,
+          storageCost: serverlessStorageCost,
+          backupCost: serverlessBackupCost
+        };
+      }
 
       // 損益分岐点の計算
       const breakEvenPoint = calculateBreakEvenIORequests(
@@ -97,17 +151,6 @@ export default function Home() {
         formData.region,
         formData.engine
       );
-
-      // Aurora Serverless v2のコスト計算（選択した場合）
-      let serverlessCost;
-      if (formData.useServerlessV2) {
-        serverlessCost = calculateServerlessV2MonthlyCost(
-          formData.averageACU,
-          formData.storageGB,
-          formData.region,
-          formData.engine
-        );
-      }
 
       // 最適な選択肢の判断
       let recommendedOption;
@@ -151,10 +194,43 @@ export default function Home() {
         breakEvenGraphData,
         storageGraphData,
         recommendedOption,
+        // コスト詳細
+        standardCostDetails: {
+          instanceCost: standardInstanceCost,
+          storageCost: standardStorageCost,
+          ioCost: standardIoCost,
+          backupCost: standardBackupCost
+        },
+        ioOptimizedCostDetails: {
+          instanceCost: ioOptimizedInstanceCost,
+          storageCost: ioOptimizedStorageCost,
+          backupCost: ioOptimizedBackupCost
+        },
+        serverlessCostDetails,
+        // 料金情報
+        pricingInfo: {
+          hourlyRate: { 
+            standard: standardHourlyRate, 
+            ioOptimized: ioOptimizedHourlyRate 
+          },
+          acuRate,
+          storageRate,
+          ioRate,
+          backupRate
+        }
       });
 
       setLoading(false);
     }, 500);
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
   };
 
   return (
@@ -299,20 +375,66 @@ export default function Home() {
                   <div>
                     <h4 className="font-semibold mb-2">Aurora Standard コスト内訳</h4>
                     <ul className="text-sm space-y-1">
-                      <li>インスタンスコスト: ${(results.standardCost * 0.7).toFixed(2)}</li>
-                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
-                      <li>I/Oコスト: ${(results.formData.ioRequests * 0.20 * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
-                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
+                      <li>
+                        インスタンスコスト: {formatCurrency(results.standardCostDetails.instanceCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {formatCurrency(results.pricingInfo.hourlyRate.standard)}/時間 × {HOURS_PER_MONTH}時間
+                        </div>
+                      </li>
+                      <li>
+                        ストレージコスト: {formatCurrency(results.standardCostDetails.storageCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {results.formData.storageGB.toLocaleString()} GB × {formatCurrency(results.pricingInfo.storageRate)}/GB
+                        </div>
+                      </li>
+                      <li>
+                        I/Oコスト: {formatCurrency(results.standardCostDetails.ioCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {results.formData.ioRequests.toLocaleString()} 百万リクエスト × {formatCurrency(results.pricingInfo.ioRate)}/百万リクエスト
+                        </div>
+                      </li>
+                      <li>
+                        バックアップコスト: {formatCurrency(results.standardCostDetails.backupCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {results.formData.storageGB.toLocaleString()} GB × 25% × {formatCurrency(results.pricingInfo.backupRate)}/GB
+                        </div>
+                      </li>
+                      <li className="font-semibold pt-2">
+                        合計月額コスト: {formatCurrency(results.standardCost)}
+                      </li>
                     </ul>
                   </div>
                   
                   <div>
                     <h4 className="font-semibold mb-2">Aurora I/O-Optimized コスト内訳</h4>
                     <ul className="text-sm space-y-1">
-                      <li>インスタンスコスト: ${(results.ioOptimizedCost * 0.85).toFixed(2)}</li>
-                      <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
-                      <li>I/Oコスト: $0.00 (I/O料金なし)</li>
-                      <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
+                      <li>
+                        インスタンスコスト: {formatCurrency(results.ioOptimizedCostDetails.instanceCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {formatCurrency(results.pricingInfo.hourlyRate.ioOptimized)}/時間 × {HOURS_PER_MONTH}時間
+                        </div>
+                      </li>
+                      <li>
+                        ストレージコスト: {formatCurrency(results.ioOptimizedCostDetails.storageCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {results.formData.storageGB.toLocaleString()} GB × {formatCurrency(results.pricingInfo.storageRate)}/GB
+                        </div>
+                      </li>
+                      <li>
+                        I/Oコスト: {formatCurrency(0)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          I/O-Optimizedモードでは無料
+                        </div>
+                      </li>
+                      <li>
+                        バックアップコスト: {formatCurrency(results.ioOptimizedCostDetails.backupCost)}
+                        <div className="text-xs text-gray-600 ml-4">
+                          {results.formData.storageGB.toLocaleString()} GB × 25% × {formatCurrency(results.pricingInfo.backupRate)}/GB
+                        </div>
+                      </li>
+                      <li className="font-semibold pt-2">
+                        合計月額コスト: {formatCurrency(results.ioOptimizedCost)}
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -327,9 +449,27 @@ export default function Home() {
                 <div>
                   <h4 className="font-semibold mb-2">Aurora Serverless v2 コスト内訳</h4>
                   <ul className="text-sm space-y-1">
-                    <li>ACUコスト: ${(results.formData.averageACU * (results.formData.engine === 'mysql' ? 0.12 : 0.14) * HOURS_PER_MONTH * (results.formData.region === 'us-east-1' ? 1.0 : 1.25)).toFixed(2)}</li>
-                    <li>ストレージコスト: ${(results.formData.storageGB * 0.10 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
-                    <li>バックアップコスト: ${(results.formData.storageGB * 0.25 * 0.021 * (results.formData.region === 'us-east-1' ? 1.0 : 1.15)).toFixed(2)}</li>
+                    <li>
+                      ACUコスト: {formatCurrency(results.serverlessCostDetails!.acuCost)}
+                      <div className="text-xs text-gray-600 ml-4">
+                        {results.formData.averageACU} ACU × {formatCurrency(results.pricingInfo.acuRate!)}/ACU時間 × {HOURS_PER_MONTH}時間
+                      </div>
+                    </li>
+                    <li>
+                      ストレージコスト: {formatCurrency(results.serverlessCostDetails!.storageCost)}
+                      <div className="text-xs text-gray-600 ml-4">
+                        {results.formData.storageGB.toLocaleString()} GB × {formatCurrency(results.pricingInfo.storageRate)}/GB
+                      </div>
+                    </li>
+                    <li>
+                      バックアップコスト: {formatCurrency(results.serverlessCostDetails!.backupCost)}
+                      <div className="text-xs text-gray-600 ml-4">
+                        {results.formData.storageGB.toLocaleString()} GB × 25% × {formatCurrency(results.pricingInfo.backupRate)}/GB
+                      </div>
+                    </li>
+                    <li className="font-semibold pt-2">
+                      合計月額コスト: {formatCurrency(results.serverlessCost!)}
+                    </li>
                   </ul>
                 </div>
               </>
