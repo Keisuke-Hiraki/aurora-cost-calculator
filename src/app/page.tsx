@@ -17,7 +17,8 @@ import {
   REGIONS,
   ENGINES,
   HOURS_PER_MONTH,
-  getPricingForRegion
+  getPricingForRegion,
+  RESERVED_INSTANCE_DISCOUNTS
 } from '@/utils/pricing';
 
 export default function Home() {
@@ -82,7 +83,8 @@ export default function Home() {
       // リザーブドインスタンスの割引率
       let discount = 0;
       if (formData.useReservedInstance) {
-        discount = pricing.RESERVED_INSTANCE[formData.reservedInstanceType as keyof typeof pricing.RESERVED_INSTANCE];
+        const reservedType = formData.reservedInstanceType as keyof typeof RESERVED_INSTANCE_DISCOUNTS;
+        discount = pricing.RESERVED_INSTANCE[reservedType];
         standardHourlyRate *= (1 - discount);
         ioOptimizedHourlyRate *= (1 - discount);
       }
@@ -125,7 +127,7 @@ export default function Home() {
         formData.instanceType,
         formData.storageGB,
         formData.useReservedInstance,
-        formData.reservedInstanceType as any,
+        formData.reservedInstanceType as keyof typeof RESERVED_INSTANCE_DISCOUNTS,
         formData.region,
         formData.engine
       );
@@ -136,7 +138,7 @@ export default function Home() {
         formData.storageGB,
         Math.max(formData.ioRequests * 2, breakEvenPoint * 1.5, 100),
         formData.useReservedInstance,
-        formData.reservedInstanceType as any,
+        formData.reservedInstanceType as keyof typeof RESERVED_INSTANCE_DISCOUNTS,
         formData.region,
         formData.engine
       );
@@ -147,7 +149,7 @@ export default function Home() {
         formData.ioRequests,
         Math.max(formData.storageGB * 2, 1000),
         formData.useReservedInstance,
-        formData.reservedInstanceType as any,
+        formData.reservedInstanceType as keyof typeof RESERVED_INSTANCE_DISCOUNTS,
         formData.region,
         formData.engine
       );
@@ -178,7 +180,7 @@ export default function Home() {
           formData.storageGB,
           formData.ioRequests,
           formData.useReservedInstance,
-          formData.reservedInstanceType as any,
+          formData.reservedInstanceType as keyof typeof RESERVED_INSTANCE_DISCOUNTS,
           formData.region,
           formData.engine
         );
